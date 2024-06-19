@@ -85,6 +85,9 @@ async function walk(file, object, self = object) {
           const values = await resolveValue(ref, true);
           return values.map((value) => mergeObject(item, value, refIndex));
         }
+        for (const key in item) {
+          item[key] = await walk(file, item[key], self);
+        }
       }
       return [item];
     }));
