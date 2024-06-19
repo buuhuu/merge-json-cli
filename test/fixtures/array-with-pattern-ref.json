@@ -1,0 +1,6 @@
+[
+    {
+        "...": "./other*.json",
+        "from": "array-item"
+    }
+]

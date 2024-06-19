@@ -1,0 +1,16 @@
+[
+    {
+        "name": "base"
+    },
+    {
+        "...": "#/base",
+        "id": "foobar",
+        "key": "value"
+    },
+    {
+        "...": "#/foobar",
+        "id": "barfoo",
+        "a": "b",
+        "b": "c"
+    }
+]

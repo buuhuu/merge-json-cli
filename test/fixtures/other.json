@@ -1,0 +1,7 @@
+{
+    "foobar": {
+        "foo": "bar",
+        "bar": "foo",
+        "...": "./other2.json#"
+    }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "merge-json-cli",
+  "version": "1.0.0",
+  "description": "A lean cli tool to merge multiple json files into one.",
+  "main": "src/cli.js",
+  "type": "module",
+  "scripts": {
+    "test": "c8 node --test test/*.js",
+    "test:watch": "node --watch --test test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Buuhuu/merge-json.git"
+  },
+  "keywords": [
+    "merge",
+    "json"
+  ],
+  "author": "Dirk Rudolph",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Buuhuu/merge-json/issues"
+  },
+  "homepage": "https://github.com/Buuhuu/merge-json#readme",
+  "engines": {
+    "node": ">=18.3.0"
+  },
+  "devDependencies": {
+    "c8": "^10.1.2"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.2"
+  }
+}

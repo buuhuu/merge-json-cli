@@ -1,0 +1,13 @@
+[
+    [
+        [
+            {
+                "...": "./other2.json"
+            }
+        ]
+    ],
+    {
+        "another": "entry"
+    },
+    "notanentry"
+]
