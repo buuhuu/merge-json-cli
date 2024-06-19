@@ -2,7 +2,8 @@
   "name": "merge-json-cli",
   "version": "1.0.0",
   "description": "A lean cli tool to merge multiple json files into one.",
-  "main": "src/cli.js",
+  "main": "src/merge.js",
+  "bin": "src/cli.js",
   "type": "module",
   "scripts": {
     "test": "c8 node --test test/*.js",
