@@ -3,8 +3,10 @@
 import { writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { merge } from './merge.js';
+import { join, basename } from 'node:path';
+import { cwd, exit } from 'node:process';
 
-const { values: { in: input, out: output } } = parseArgs({
+let { values: { in: input, out: output } } = parseArgs({
   options: {
     in: {
       type: 'string',
@@ -17,9 +19,15 @@ const { values: { in: input, out: output } } = parseArgs({
   },
 });
 
+if (input) {
+  if (!output) {
+    output = join(cwd(), basename(input));
+  }
+}
+
 if (!input || !output) {
-  console.error('Usage: merge-json --in <input> --out <output>');
-  process.exit(1);
+  console.error('Usage: merge-json --in <input> [--out <output>]');
+  exit(1);
 }
 
 const mergedCotnent = await merge(input);
