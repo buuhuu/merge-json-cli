@@ -41,6 +41,7 @@ if (input) {
     if (s.isDirectory()) {
       output = join(output, basename(input));
     }
+    input = [input];
   }
 }
 
