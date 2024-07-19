@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { existsSync } from 'node:fs';
 import { writeFile, stat } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { merge } from './merge.js';
@@ -37,10 +38,13 @@ if (input) {
     if (!output) {
       output = cwd();
     }
-    const s = await stat(output);
-    if (s.isDirectory()) {
-      output = join(output, basename(input));
+    if (existsSync(output)) {
+      const s = await stat(output);
+      if (s.isDirectory()) {
+        output = join(output, basename(input));
+      }
     }
+    output = [output];
     input = [input];
   }
 }
