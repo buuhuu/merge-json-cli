@@ -57,6 +57,26 @@ describe('merge()', async () => {
     );
   });
 
+  await it('merges an array with a pattern reference with other arrays', async () => {
+    assert.deepEqual(
+      await merge(join(__dirname, 'fixtures', 'array-with-pattern-ref-to-arrays.json')),
+      [
+        {
+          'item': 'item1',
+        },
+        {
+          'item': 'item2',
+        },
+        {
+          'item': 'item3',
+        },
+        {
+          'item': 'item4',
+        } 
+      ]
+    );
+  });
+
   await it('throws for a reference outside of the directory', async () => {
     try {
       await merge(join(__dirname, 'fixtures', 'object-with-broken-ref.json'));
@@ -83,4 +103,5 @@ describe('merge()', async () => {
       // expected
     };
   });
+
 });

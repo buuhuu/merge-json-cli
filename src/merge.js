@@ -79,11 +79,20 @@ async function walk(file, object, self = object) {
         return [await walk(file, item, self)];
       }
       if (typeof item === 'object') {
-        const refIndex = Object.keys(item).findIndex((key) => key === '...');
+        const keys = Object.keys(item);
+        const refIndex = keys.findIndex((key) => key === '...');
         if (refIndex >= 0) {
           const ref = item['...'];
-          const values = await resolveValue(ref, true);
-          return values.map((value) => mergeObject(item, value, refIndex));
+          let values = await resolveValue(ref, true);
+          if (keys.length === 1) {
+            // the ref is the only key in the object, flatten if the results are arrays
+            // merging is not necessary
+            values = values.flatMap((value) => Array.isArray(value) ? value : [value]);
+          } else {
+            // if not, no matter what, we merge them
+            values = values.map((value) => mergeObject(item, value, refIndex));
+          }          
+          return values;
         }
         for (const key in item) {
           item[key] = await walk(file, item[key], self);
