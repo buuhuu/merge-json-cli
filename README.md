@@ -29,9 +29,11 @@ npm install --save-dev https://github.com/Buuhuu/merge-json-cli
 
 ## Implementation
 
-### Merging Objects
+The semantics of the syntax for merging objects and arrays is similar to the spread syntax in JavaScript. The keys of the referenced file will be included at the position of and replace the spread operator. 
 
-The semantics of the syntax for merging objects is similar to the spread syntax in JavaScript. The keys of the referenced file will be included at the position of and replace the spread operator.
+When merging arrays it is possible to specifc a glob pattern that matches many files. Each matched file will be merged, and if the spread operator is the only key in the source object the target object will replace it entirely. This allows also for merging arrays into an array.
+
+### Merging objects
 
 For example, given the following input.json
 
@@ -73,11 +75,12 @@ It is also possible to reference nested objects in other files
 
 ### Merging Arrays
 
-It is also possible to merge arrays using glob patterns
+When merging arrays path patterns can be used to merge 0..n objects into the array
 
 ```json
 [
-    { "...": "./blocks/*/model.json" }
+    { "...": "../*/component.json" }
 ]
 ````
 
+If the source object only contains the spread operator and the target object is an array, the array items will be spliced into the source array at the position of the source object.
