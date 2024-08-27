@@ -50,7 +50,9 @@ async function walk(file, object, self = object) {
         throw new Error(`Pattern reference '${otherFile}' only permitted in arrays`);
       }
       paths = await glob.glob(otherFile, { cwd: dir });
-      paths = paths.map((path) => resolve(dir, path));
+      paths = paths
+        .map((path) => resolve(dir, path))
+        .sort();
     } else {
       paths = [resolve(dir, otherFile)];
     }
