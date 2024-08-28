@@ -2,24 +2,21 @@
 
 import { existsSync } from 'node:fs';
 import { writeFile, stat } from 'node:fs/promises';
-import { parseArgs } from 'node:util';
 import { merge } from './merge.js';
 import { join, basename } from 'node:path';
 import { cwd, exit } from 'node:process';
 import glob from 'fast-glob';
+import parseArgs from 'yargs-parser';
 
-let { values: { in: input, out: output } } = parseArgs({
-  options: {
-    in: {
-      type: 'string',
-      short: 'i',
-    },
-    out: {
-      type: 'string',
-      short: 'o',
-    },
-  },
-});
+let { input, output } = parseArgs(
+  process.argv.slice(2),
+  {
+    alias: {
+      input: ['i'],
+      output: ['o']
+    }
+  }
+);
 
 if (input) {
   if (glob.isDynamicPattern(input)) {
@@ -58,7 +55,7 @@ await Promise.all(
   input
     .map((file, index) => [file, output[index]])
     .map(async ([input, output]) => {
-      const mergedCotnent = await merge(input); 
+      const mergedContent = await merge(input);
       console.log(`writing ${output}...`);
-      await writeFile(output, JSON.stringify(mergedCotnent, null, 2));
+      await writeFile(output, JSON.stringify(mergedContent, null, 2));
     }));

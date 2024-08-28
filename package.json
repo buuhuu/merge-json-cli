@@ -30,6 +30,7 @@
     "c8": "^10.1.2"
   },
   "dependencies": {
-    "fast-glob": "^3.3.2"
+    "fast-glob": "^3.3.2",
+    "yargs-parser": "^21.1.1"
   }
 }
