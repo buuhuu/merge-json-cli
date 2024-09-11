@@ -70,56 +70,52 @@ async function walk(file, object, self = object) {
     }));
   }
 
-  function mergeObject(left, right, position) {
-    const leftKeys = Object.keys(left);
-    const leftValues = Object.values(left);
-    const rightKeys = Object.keys(right);
-    const rightValues = Object.values(right);
-    const mergedKeys = [...leftKeys.slice(0, position), ...rightKeys, ...leftKeys.slice(position + 1)];
-    const mergedValues = [...leftValues.slice(0, position), ...rightValues, ...leftValues.slice(position + 1)];
-    return Object.fromEntries(mergedKeys.map((key, index) => [key, mergedValues[index]]));
+  async function processObject(obj) {
+    let importedFields = [];
+    let newObject = {};
+
+    for (const key of Object.keys(obj)) {
+      if (key.startsWith('...')) {
+        const ref = obj[key];
+        let values = await resolveValue(ref);
+        importedFields = importedFields.concat(values);
+      } else if (key === 'fields') {
+        // CHANGE: Handle existing 'fields' separately
+        newObject[key] = await walk(file, obj[key], self);
+      } else {
+        newObject[key] = await walk(file, obj[key], self);
+      }
+    }
+
+    // CHANGE: Consolidate fields
+    if (importedFields.length > 0 || newObject.fields) {
+      // Merge imported fields with existing fields, if any
+      newObject.fields = (newObject.fields || []).concat(importedFields);
+      
+      // CHANGE: Flatten the fields array to remove nested 'fields' objects
+      newObject.fields = newObject.fields.flatMap(field => {
+        if (field.fields) {
+          // If a field has its own 'fields' property, merge it into the main fields array
+          return field.fields;
+        }
+        return field;
+      });
+    }
+
+    return newObject;
   }
 
   if (Array.isArray(object)) {
-    const mergedNotFlattened = await Promise.all(object.map(async (item) => {
-      if (Array.isArray(item)) {
-        return [await walk(file, item, self)];
+    return Promise.all(object.map(async (item) => {
+      if (typeof item === 'object' && item !== null) {
+        return processObject(item);
       }
-      if (typeof item === 'object') {
-        const keys = Object.keys(item);
-        const refIndex = keys.findIndex((key) => key === '...');
-        if (refIndex >= 0) {
-          const ref = item['...'];
-          let values = await resolveValue(ref, true);
-          if (keys.length === 1) {
-            // the ref is the only key in the object, flatten if the results are arrays
-            // merging is not necessary
-            values = values.flatMap((value) => Array.isArray(value) ? value : [value]);
-          } else {
-            // if not, no matter what, we merge them
-            values = values.map((value) => mergeObject(item, value, refIndex));
-          }          
-          return values;
-        }
-        for (const key in item) {
-          item[key] = await walk(file, item[key], self);
-        }
-      }
-      return [item];
+      return item;
     }));
-    return mergedNotFlattened.flatMap((array) => array);
   }
 
   if (typeof object === 'object' && object !== null) {
-    const refIndex = Object.keys(object).findIndex((key) => key === '...');
-    if (refIndex >= 0) {
-      const ref = object['...'];
-      const [value] = await resolveValue(ref);
-      return mergeObject(object, value, refIndex);
-    }
-    for (const key in object) {
-      object[key] = await walk(file, object[key], self);
-    }
+    return processObject(object);
   }
 
   return object;
