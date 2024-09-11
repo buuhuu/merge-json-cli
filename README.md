@@ -91,7 +91,7 @@ When merging arrays path patterns can be used to merge 0..n objects into the arr
 ]
 ````
 
-### Mergin multiple JSON files into one
+### Merge multiple JSON files into one
 
 Added the ability to merge multiple JSON files into one as code looks for any key starting with ...
 
