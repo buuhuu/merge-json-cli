@@ -8,7 +8,7 @@ async function readJsonFile(path) {
   return JSON.parse(fileContent);
 }
 
-function findRef(path, object, origianlPath = path) {
+function findRef(path, object, originalPath = path) {
   if (path === '/' || path === '') {
     return object;
   }
@@ -17,14 +17,19 @@ function findRef(path, object, origianlPath = path) {
   const key = parts.shift();
   let nextObject;
   if (Array.isArray(object)) {
-    nextObject = object.find((item) => item.id === key || item.name === key);
+    if (!isNaN(key)) {
+      // If the key is a number, use it as an array index so when in json files, we can properly target /0/fields or other indexes
+      nextObject = object[parseInt(key, 10)];
+    } else {
+      nextObject = object.find((item) => item.id === key || item.name === key);
+    }
   } else if (typeof object === 'object') {
     nextObject = object[key];
   }
   if (!nextObject) {
-    throw new Error(`Reference '${origianlPath}' not found`);
+    throw new Error(`Reference '${originalPath}' not found`);
   }
-  return findRef(`/${parts.join('/')}`, nextObject, origianlPath);
+  return findRef(`/${parts.join('/')}`, nextObject, originalPath);
 }
 
 async function walk(file, object, self = object) {
