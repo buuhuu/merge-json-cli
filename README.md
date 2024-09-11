@@ -68,12 +68,14 @@ will be merged to
 It is also possible to reference nested objects in other files
 
 ```json
-// Support named nested objects
 {
     "...": "./other.json#/some/key"
 }
+```
 
-// Support array indexes
+Support for merging array indexes buy its key
+
+```json
 {
     "...": "./other.json#/some/0/name"
 }
@@ -90,8 +92,10 @@ When merging arrays path patterns can be used to merge 0..n objects into the arr
 ````
 
 ### Mergin multiple JSON files into one
+
+Added the ability to merge multiple JSON files into one as code looks for any key starting with ...
+
 ```json
-// Added the ability to merge multiple JSON files into one as code looks for any key starting with ...
 {
     "...": "./file1.json#/some/name",
     "...1": "./file2.json#/some/0/array-item"
