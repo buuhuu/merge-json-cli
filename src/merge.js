@@ -18,12 +18,18 @@ function findRef(path, object, originalPath = path) {
 
   for (const part of parts) {
     if (Array.isArray(current)) {
-      // If we're looking for any property in an array of objects, find the first object with that property
-      const foundObject = current.find(item => item[part] !== undefined);
-      if (foundObject) {
-        current = foundObject[part];
+      if (/^\d+$/.test(part)) {
+        // If the part is a number, use it as an index
+        const index = parseInt(part, 10);
+        current = current[index];
       } else {
-        current = current.find(item => item.id === part);
+        // If no index is specified, default to the first item (index 0)
+        const foundObject = current.find(item => item[part] !== undefined);
+        if (foundObject) {
+          current = foundObject[part];
+        } else {
+          current = current[0] && current[0][part];
+        }
       }
     } else if (typeof current === 'object' && current !== null) {
       current = current[part];
