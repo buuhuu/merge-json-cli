@@ -13,23 +13,30 @@ function findRef(path, object, originalPath = path) {
     return object;
   }
 
-  const [, ...parts] = path.split('/');
-  const key = parts.shift();
-  let nextObject;
-  if (Array.isArray(object)) {
-    if (!isNaN(key)) {
-      // If the key is a number, use it as an array index so when in json files, we can properly target /0/fields or other indexes
-      nextObject = object[parseInt(key, 10)];
+  const parts = path.split('/').filter(Boolean);
+  let current = object;
+
+  for (const part of parts) {
+    if (Array.isArray(current)) {
+      // If we're looking for any property in an array of objects, find the first object with that property
+      const foundObject = current.find(item => item[part] !== undefined);
+      if (foundObject) {
+        current = foundObject[part];
+      } else {
+        current = current.find(item => item.id === part);
+      }
+    } else if (typeof current === 'object' && current !== null) {
+      current = current[part];
     } else {
-      nextObject = object.find((item) => item.id === key || item.name === key);
+      current = undefined;
     }
-  } else if (typeof object === 'object') {
-    nextObject = object[key];
+
+    if (current === undefined) {
+      throw new Error(`Reference '${originalPath}' not found at '${part}'`);
+    }
   }
-  if (!nextObject) {
-    throw new Error(`Reference '${originalPath}' not found`);
-  }
-  return findRef(`/${parts.join('/')}`, nextObject, originalPath);
+
+  return current;
 }
 
 async function walk(file, object, self = object) {
@@ -63,59 +70,68 @@ async function walk(file, object, self = object) {
     }
 
     return await Promise.all(paths.map(async (otherFile) => {
-      validateRelativeTo(otherFile);
-      const otherObject = await readJsonFile(otherFile);
-      const value = findRef(path, otherObject);
-      return await walk(otherFile, value, otherObject)
+      try {
+        validateRelativeTo(otherFile);
+        const otherObject = await readJsonFile(otherFile);
+        const value = findRef(path, otherObject);
+        return await walk(otherFile, value, otherObject);
+      } catch (error) {
+        throw error;
+      }
     }));
   }
 
-  async function processObject(obj) {
-    let importedFields = [];
-    let newObject = {};
-
-    for (const key of Object.keys(obj)) {
-      if (key.startsWith('...')) {
-        const ref = obj[key];
-        let values = await resolveValue(ref);
-        importedFields = importedFields.concat(values);
-      } else if (key === 'fields') {
-        // CHANGE: Handle existing 'fields' separately
-        newObject[key] = await walk(file, obj[key], self);
-      } else {
-        newObject[key] = await walk(file, obj[key], self);
+  function mergeObject(left, right) {
+    const result = { ...left };
+    for (const key in right) {
+      if (Object.prototype.hasOwnProperty.call(right, key)) {
+        if (typeof right[key] === 'object' && right[key] !== null && !Array.isArray(right[key])) {
+          result[key] = mergeObject(result[key] || {}, right[key]);
+        } else {
+          result[key] = right[key];
+        }
       }
     }
-
-    // CHANGE: Consolidate fields
-    if (importedFields.length > 0 || newObject.fields) {
-      // Merge imported fields with existing fields, if any
-      newObject.fields = (newObject.fields || []).concat(importedFields);
-      
-      // CHANGE: Flatten the fields array to remove nested 'fields' objects
-      newObject.fields = newObject.fields.flatMap(field => {
-        if (field.fields) {
-          // If a field has its own 'fields' property, merge it into the main fields array
-          return field.fields;
-        }
-        return field;
-      });
-    }
-
-    return newObject;
+    return result;
   }
 
   if (Array.isArray(object)) {
-    return Promise.all(object.map(async (item) => {
-      if (typeof item === 'object' && item !== null) {
-        return processObject(item);
+    const mergedNotFlattened = await Promise.all(object.map(async (item) => {
+      if (Array.isArray(item)) {
+        return [await walk(file, item, self)];
       }
-      return item;
+      if (typeof item === 'object') {
+        const keys = Object.keys(item);
+        const refIndex = keys.findIndex((key) => key === '...');
+        if (refIndex >= 0) {
+          const ref = item['...'];
+          let values = await resolveValue(ref, true);
+          values = values.flatMap(value => Array.isArray(value) ? value : [value]);
+          // Merge the imported values with the rest of the properties in the item
+          const { '...': _, ...rest } = item;
+          return values.map(value => mergeObject(value, rest));
+        }
+        for (const key in item) {
+          item[key] = await walk(file, item[key], self);
+        }
+      }
+      return [item];
     }));
+    return mergedNotFlattened.flatMap((array) => array);
   }
 
   if (typeof object === 'object' && object !== null) {
-    return processObject(object);
+    const refIndex = Object.keys(object).findIndex((key) => key === '...');
+    if (refIndex >= 0) {
+      const ref = object['...'];
+      const [value] = await resolveValue(ref);
+      // Merge the imported value with the rest of the properties in the object
+      const { '...': _, ...rest } = object;
+      return mergeObject(value, rest);
+    }
+    for (const key in object) {
+      object[key] = await walk(file, object[key], self);
+    }
   }
 
   return object;
