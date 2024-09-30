@@ -8,23 +8,41 @@ async function readJsonFile(path) {
   return JSON.parse(fileContent);
 }
 
-function findRef(path, object, origianlPath = path) {
+function findRef(path, object, originalPath = path) {
   if (path === '/' || path === '') {
     return object;
   }
 
-  const [, ...parts] = path.split('/');
-  const key = parts.shift();
-  let nextObject;
-  if (Array.isArray(object)) {
-    nextObject = object.find((item) => item.id === key || item.name === key);
-  } else if (typeof object === 'object') {
-    nextObject = object[key];
+  const parts = path.split('/').filter(Boolean);
+  let current = object;
+
+  for (const part of parts) {
+    if (Array.isArray(current)) {
+      if (/^\d+$/.test(part)) {
+        // If the part is a number, use it as an index
+        const index = parseInt(part, 10);
+        current = current[index];
+      } else {
+        // If no index is specified, default to the first item (index 0)
+        const foundObject = current.find(item => item[part] !== undefined);
+        if (foundObject) {
+          current = foundObject[part];
+        } else {
+          current = current[0] && current[0][part];
+        }
+      }
+    } else if (typeof current === 'object' && current !== null) {
+      current = current[part];
+    } else {
+      current = undefined;
+    }
+
+    if (current === undefined) {
+      throw new Error(`Reference '${originalPath}' not found at '${part}'`);
+    }
   }
-  if (!nextObject) {
-    throw new Error(`Reference '${origianlPath}' not found`);
-  }
-  return findRef(`/${parts.join('/')}`, nextObject, origianlPath);
+
+  return current;
 }
 
 async function walk(file, object, self = object) {
@@ -58,21 +76,29 @@ async function walk(file, object, self = object) {
     }
 
     return await Promise.all(paths.map(async (otherFile) => {
-      validateRelativeTo(otherFile);
-      const otherObject = await readJsonFile(otherFile);
-      const value = findRef(path, otherObject);
-      return await walk(otherFile, value, otherObject)
+      try {
+        validateRelativeTo(otherFile);
+        const otherObject = await readJsonFile(otherFile);
+        const value = findRef(path, otherObject);
+        return await walk(otherFile, value, otherObject);
+      } catch (error) {
+        throw error;
+      }
     }));
   }
 
-  function mergeObject(left, right, position) {
-    const leftKeys = Object.keys(left);
-    const leftValues = Object.values(left);
-    const rightKeys = Object.keys(right);
-    const rightValues = Object.values(right);
-    const mergedKeys = [...leftKeys.slice(0, position), ...rightKeys, ...leftKeys.slice(position + 1)];
-    const mergedValues = [...leftValues.slice(0, position), ...rightValues, ...leftValues.slice(position + 1)];
-    return Object.fromEntries(mergedKeys.map((key, index) => [key, mergedValues[index]]));
+  function mergeObject(left, right) {
+    const result = { ...left };
+    for (const key in right) {
+      if (Object.prototype.hasOwnProperty.call(right, key)) {
+        if (typeof right[key] === 'object' && right[key] !== null && !Array.isArray(right[key])) {
+          result[key] = mergeObject(result[key] || {}, right[key]);
+        } else {
+          result[key] = right[key];
+        }
+      }
+    }
+    return result;
   }
 
   if (Array.isArray(object)) {
@@ -86,15 +112,10 @@ async function walk(file, object, self = object) {
         if (refIndex >= 0) {
           const ref = item['...'];
           let values = await resolveValue(ref, true);
-          if (keys.length === 1) {
-            // the ref is the only key in the object, flatten if the results are arrays
-            // merging is not necessary
-            values = values.flatMap((value) => Array.isArray(value) ? value : [value]);
-          } else {
-            // if not, no matter what, we merge them
-            values = values.map((value) => mergeObject(item, value, refIndex));
-          }          
-          return values;
+          values = values.flatMap(value => Array.isArray(value) ? value : [value]);
+          // Merge the imported values with the rest of the properties in the item
+          const { '...': _, ...rest } = item;
+          return values.map(value => mergeObject(value, rest));
         }
         for (const key in item) {
           item[key] = await walk(file, item[key], self);
@@ -110,7 +131,9 @@ async function walk(file, object, self = object) {
     if (refIndex >= 0) {
       const ref = object['...'];
       const [value] = await resolveValue(ref);
-      return mergeObject(object, value, refIndex);
+      // Merge the imported value with the rest of the properties in the object
+      const { '...': _, ...rest } = object;
+      return mergeObject(value, rest);
     }
     for (const key in object) {
       object[key] = await walk(file, object[key], self);
